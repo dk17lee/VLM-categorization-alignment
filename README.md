@@ -1,64 +1,64 @@
-# VLM Categorization — Levering (2020) Replication
+# VLM Categorization — Levering (2020) Real-Time Simulation
 
-This project tests whether LLMs and VLMs behave like humans on the Levering (2020) categorization task, using two complementary approaches: **real-time simulation** and **alignment scoring against real human data**.
+This project simulates the Levering (2020) categorization task in real time, treating LLMs and VLMs as active participants. Models receive trial-by-trial feedback and learn the category rule from scratch, mirroring the original human experiment.
 
 ## Task
 
-Stimuli are 3-digit codes (`XYZ`) encoding shape, size, and shading:
-- `X` — shape: `1` = square, `2` = triangle
-- `Y` — size: `1` = large (1.50 in), `2` = small (0.75 in)
-- `Z` — shading: `1` = black, `2` = white
+Stimuli are 3-digit codes (`XYZ`) encoding three binary visual dimensions:
 
-**Two conditions** from Levering (2020), pulled from the [Psych-101 dataset](https://huggingface.co/datasets/marcelbinz/Psych-101):
+| Digit | Dimension | 1 | 2 |
+|-------|-----------|---|---|
+| X | Shape | Square | Triangle |
+| Y | Size | Large (1.50 in) | Small (0.75 in) |
+| Z | Shading | Black | White |
 
-| Condition | File | Categories | Rule |
-|-----------|------|------------|------|
-| NLS | `exp1.csv` (126 participants) | Z / W | Non-linearly separable — no single feature predicts category; exception items `212`, `121` contradict the shape heuristic |
-| LS | `exp2.csv` (102 participants) | R / H | Linearly separable — majority-of-digits rule (≥2 ones → R, ≥2 twos → H) |
+**Two conditions** from Levering (2020), sourced from the [Psych-101 dataset](https://huggingface.co/datasets/marcelbinz/Psych-101):
 
----
+| Condition | Labels | Rule | Exception items |
+|-----------|--------|------|-----------------|
+| **NLS** (exp1, 126 participants) | Z / W | Non-linearly separable — no single feature predicts category | `212`, `121` contradict the shape heuristic |
+| **LS** (exp2, 102 participants) | R / H | Linearly separable — majority-of-digits rule (≥2 ones → R, ≥2 twos → H) | None |
 
-## Notebooks
-
-### `simulation_final.ipynb` — Real-Time Simulation
-
-Models are treated as active participants. They receive feedback after each trial and accumulate the full trial history in their context, mirroring the original human experiment.
-
-**Two pipelines:**
-- **Text pipeline (LLMs):** stimuli presented as numeric codes (e.g., `211`)
-- **Visual pipeline (VLMs):** stimuli rendered as PNG images (grey background, black/white shapes)
-
-**Training:** `N_REPS` shuffled blocks over the 6 training stimuli per condition, with correct/incorrect feedback.
-
-**Test block:** models categorize all 8 stimuli and provide typicality ratings (1–9 scale).
-
-**Analyses:**
-- Block-level learning curves vs. human benchmarks (Levering et al. 2020, Figure 4)
-- Exception vs. non-exception item accuracy (NLS only; exception items `212`, `121` contradict shape rule)
-- Typicality ratings: model vs. human averages from Psych-101
-- Counterbalancing over swapped/standard label maps to cancel token-level response bias
-- Surface relabeling diagnostic (Llama NLS only) to check for memorization
+Each condition uses 6 training stimuli and 8 test stimuli.
 
 ---
 
-### `categorization_alignment_final.ipynb` — Human Alignment Scoring
+## Notebook: `simulation_final.ipynb`
 
-Rather than simulating, this notebook replays **real human transcripts** and measures how surprised a model is by the human's actual choices using **negative log-likelihood (NLL)**.
+### Pipeline 1 — Text Simulation (LLMs)
 
-Lower NLL = model assigns higher probability to what the human did = better alignment.
+Models receive stimuli as numeric codes (e.g., `211`) accumulated in their context window, with the full trial history prepended to each new trial. After each categorization response, they receive correct/incorrect feedback and a point score.
 
-**Three analyses:**
+**Training:** `N_REPS` shuffled blocks over the 6 training stimuli per condition.
 
-1. **Condition comparison** — NLL per model on NLS vs. LS, training and test phases, with SE error bars across participants
+**Test block:** Models categorize all 8 stimuli (including 2 novel ones not seen in training) and provide a typicality rating (1–9 scale) for each.
 
-2. **Contamination / memorization check** — standard prompts (W/N labels) vs. relabeled prompts (W→P, N→Q, plus stimulus code permutation `XYZ→ZYX`). A large NLL increase under relabeling suggests the model was leveraging memorized associations rather than genuinely learning the rule.
+### Pipeline 2 — Visual Simulation (VLMs)
 
-3. **VLM input variants** — three ways to present stimuli to vision models:
-   - `text_only` — numeric code in plain text
-   - `image_only` — rendered PNG replaces the stimulus code
-   - `image_and_text` — PNG plus code caption
+Stimuli are rendered as PNG images (square or triangle, large or small, black or white on a gray background) and sent via the multimodal API. The full trial history is passed as text, but each new trial's stimulus is image-only — no numeric code shown to the model.
 
-**Also computed:** Spearman correlation between model confidence (P(human's category)) and human typicality ratings on test trials.
+A multi-turn message structure preserves the full image history so the model sees each stimulus in sequence, as human participants do.
+
+---
+
+## Analyses & Figures
+
+| Figure | Description |
+|--------|-------------|
+| **Fig 1** | Block-level learning curves — text pipeline vs. human benchmarks (Levering 2020, Fig. 4) |
+| **Fig 2** | Three-panel summary: (a) NLS vs. LS accuracy gap, (b) exception vs. non-exception accuracy, (c) token bias diagnostic (standard vs. counterbalance-corrected) |
+| **Fig 3** | Learning curves — visual pipeline vs. human benchmarks |
+| **Fig 4** | Visual pipeline: train vs. test accuracy, typicality ratings per stimulus |
+| **Fig 5/6** | Text vs. visual pipeline comparison — learning curves and exception item breakdown |
+| **Typicality** | Typicality ratings per stimulus: human average (Psych-101) vs. text pipeline vs. visual pipeline |
+
+### Key design choices
+
+**Counterbalancing:** Each run is averaged across the standard label assignment and a swapped version (e.g., Z↔W) to cancel token-level response bias toward any single label.
+
+**Relabeling diagnostic (Llama NLS only):** Two relabeled variants are run — `label_only` (Z→P, W→Q) and `surface_relabel` (Z→P, W→Q + digit-position permutation XYZ→ZYX) — to test whether learning transfers under surface-level changes.
+
+**Seeds:** Results are averaged across seeds `[2, 5, 3]` with standard error bars.
 
 ---
 
@@ -66,20 +66,21 @@ Lower NLL = model assigns higher probability to what the human did = better alig
 
 Accessed via Brown CCV's LiteLLM proxy (`https://litellm.ccv.brown.edu`).
 
-| Model | Type | Used in |
-|-------|------|---------|
-| `gpt-5.2` | LLM + VLM | Simulation |
-| `Llama-3.3-70B-Instruct` | LLM | Simulation, Alignment |
-| `claude-sonnet-4-5` | VLM | Alignment |
-| `gpt-5.4` | VLM | Alignment |
+| Model | Pipeline |
+|-------|----------|
+| `gpt-5.2` | Text + Visual |
+| `Llama-3.3-70B-Instruct` | Text |
+| `claude-sonnet-4-5` | Text + Visual |
+| `gemini-2.5-pro` | Text + Visual |
+| `gemini-3-flash-preview` | Text + Visual |
 
 ---
 
 ## Setup
 
-1. Clone the repo and install dependencies:
+1. Install dependencies:
 ```bash
-pip install openai python-dotenv datasets tqdm numpy pandas matplotlib scipy
+pip install openai python-dotenv datasets tqdm numpy pandas matplotlib
 ```
 
 2. Create a `.env` file with your API key:
@@ -87,7 +88,7 @@ pip install openai python-dotenv datasets tqdm numpy pandas matplotlib scipy
 OPENAI_API_KEY=your_key_here
 ```
 
-3. Run `simulation_final.ipynb` for the real-time simulation, or `categorization_alignment_final.ipynb` for the alignment analysis.
+3. Run `simulation_final.ipynb`. Set `QUICK_TEST = False` for a full production run (`N_REPS = 6`, all models, both pipelines). Set `QUICK_TEST = True` for a fast smoke test (`N_REPS = 3`, first model only, no visual pipeline).
 
 ---
 
