@@ -1,0 +1,8 @@
+openai
+pandas
+matplotlib
+numpy
+python-dotenv
+jupyter
+ipykernel
+datasets

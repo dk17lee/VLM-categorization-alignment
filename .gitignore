@@ -1,0 +1,49 @@
+# Secrets & credentials
+.env
+.env.*
+*.env
+secrets.json
+secrets.yaml
+secrets.yml
+credentials.json
+*_credentials.*
+*.pem
+*.key
+*.p12
+*.pfx
+api_keys.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs & temp
+*.log
+*.tmp
+*.bak
